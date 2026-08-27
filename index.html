@@ -4,14 +4,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#0a0f1f" />
-  <title>Sentence Hunter v0.1</title>
+  <title>Sentence Hunter v0.2 Candidate</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <div class="ambient ambient-one"></div>
   <div class="ambient ambient-two"></div>
 
-  <main class="app-shell" aria-live="polite">
+  <main class="app-shell">
     <section id="start-screen" class="screen active">
       <button id="sound-toggle-start" class="icon-button sound-toggle" type="button" aria-label="소리 켜기 또는 끄기">🔊</button>
 
@@ -40,10 +40,15 @@
         </div>
       </div>
 
-      <p class="prototype-note">Prototype v0.1 · 30 verified sample questions</p>
+      <p class="prototype-note">Prototype v0.2 candidate · Original 30 questions preserved</p>
     </section>
 
     <section id="game-screen" class="screen" aria-label="게임 화면">
+      <div id="countdown-overlay" class="countdown-overlay" role="status" aria-live="polite" tabindex="-1" hidden>
+        <span>GET READY</span>
+        <strong id="countdown-value">3</strong>
+      </div>
+
       <header class="game-header">
         <div id="timer-pill" class="hud-pill timer-pill">
           <span>TIME</span>
@@ -65,13 +70,14 @@
         <div class="arena-grid" aria-hidden="true"></div>
         <div id="fever-label" class="fever-label">FEVER 15</div>
 
-        <div class="fighter player-fighter" aria-label="Sentence Hunter">
+        <div id="player-wrap" class="fighter player-fighter" aria-label="Sentence Hunter">
           <div class="fighter-shadow"></div>
           <div class="fighter-emoji">🛡️</div>
           <span>HUNTER</span>
         </div>
 
         <div id="projectile-layer" class="projectile-layer" aria-hidden="true"></div>
+        <div id="impact-label" class="impact-label" aria-hidden="true"></div>
 
         <div id="enemy-wrap" class="fighter enemy-fighter" aria-label="Grammar Bug">
           <div class="enemy-meta">
@@ -90,10 +96,13 @@
           <span id="difficulty-chip" class="difficulty-chip">STARTER</span>
           <span id="question-count">Q 1</span>
         </div>
-        <p id="phase-prompt" class="phase-prompt">틀린 부분을 터치하세요</p>
+        <div class="phase-guide" aria-live="polite" aria-atomic="true">
+          <span id="phase-step" class="phase-step">STEP 1 · FIND</span>
+          <p id="phase-prompt" class="phase-prompt">틀린 부분을 터치하세요</p>
+        </div>
         <div id="sentence-segments" class="sentence-segments" role="group" aria-label="영어 문장"></div>
         <div id="answer-options" class="answer-options hidden" role="group" aria-label="교정 선택지"></div>
-        <div id="feedback" class="feedback" aria-live="assertive"></div>
+        <div id="feedback" class="feedback" aria-live="assertive" aria-atomic="true"></div>
       </section>
 
       <div class="micro-stats">
@@ -103,13 +112,13 @@
       </div>
     </section>
 
-    <section id="result-screen" class="screen">
+    <section id="result-screen" class="screen" aria-label="게임 결과" aria-live="polite">
       <button id="sound-toggle-result" class="icon-button sound-toggle" type="button" aria-label="소리 켜기 또는 끄기">🔊</button>
 
       <div class="result-heading">
         <p id="result-reason" class="eyebrow">TIME UP</p>
         <div id="result-grade" class="grade-orb">A</div>
-        <h2>MISSION COMPLETE</h2>
+        <h2 id="result-title" tabindex="-1">MISSION COMPLETE</h2>
       </div>
 
       <div class="result-card glass-card">
