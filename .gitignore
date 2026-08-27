@@ -1,0 +1,17 @@
+# Vercel local project metadata
+.vercel/
+
+# Codex/local working folders
+work/
+outputs/
+
+# Python local server artifacts
+__pycache__/
+*.py[cod]
+
+# Editor and operating-system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
