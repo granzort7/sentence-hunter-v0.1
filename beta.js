@@ -205,7 +205,14 @@
     setStatus(status, "아래 텍스트를 직접 선택해 복사해 주세요.");
   }
 
+  function clearManualCopy(textarea, status) {
+    textarea.hidden = true;
+    textarea.value = "";
+    setStatus(status, "");
+  }
+
   async function copyText(text, textarea, status, successMessage = "피드백이 복사되었습니다.") {
+    clearManualCopy(textarea, status);
     try {
       if (!navigator.clipboard || typeof navigator.clipboard.writeText !== "function") {
         throw new Error("Clipboard API unavailable");
@@ -222,6 +229,7 @@
   }
 
   async function shareText(title, text, textarea, status, copySuccessMessage) {
+    clearManualCopy(textarea, status);
     if (typeof navigator.share === "function") {
       try {
         await navigator.share({ title, text });
@@ -270,6 +278,15 @@
     }
   }
 
+  function resetStartShareUi() {
+    const { startStatus, startManual } = state.elements;
+    if (startStatus) startStatus.textContent = "";
+    if (startManual) {
+      startManual.hidden = true;
+      startManual.value = "";
+    }
+  }
+
   function createStartTools(startScreen) {
     const tools = createElement("div", "beta-start-tools");
     const fallback = createElement("div", "beta-start-feedback");
@@ -305,8 +322,13 @@
     const toggle = createElement("button", "beta-feedback-toggle", "20초 피드백 남기기");
     const panel = createElement("div", "beta-feedback-panel glass-card");
     const heading = createElement("h3", "beta-panel-title", "BETA FEEDBACK");
-    const intro = createElement("p", "beta-panel-intro", "필수 4개만 선택하면 바로 공유할 수 있어요.");
+    const intro = createElement(
+      "p",
+      "beta-panel-intro",
+      "필수 4개만 선택하면 바로 공유할 수 있어요. 이름·이메일 등 개인정보는 입력하지 마세요."
+    );
     const form = createElement("form", "beta-feedback-form");
+    form.autocomplete = "off";
 
     toggle.type = "button";
     toggle.setAttribute("aria-expanded", "false");
@@ -371,6 +393,8 @@
       if (text) runAction(copyButton, () => copyText(text, manual, status));
     });
     form.addEventListener("submit", (event) => event.preventDefault());
+    form.addEventListener("input", () => clearManualCopy(manual, status));
+    form.addEventListener("change", () => clearManualCopy(manual, status));
 
     heading.tabIndex = -1;
     panel.appendChild(heading);
@@ -413,6 +437,7 @@
   function onGameStart() {
     state.result = null;
     if (state.elements.shell) state.elements.shell.hidden = true;
+    resetStartShareUi();
     resetFeedbackUi();
   }
 
@@ -437,6 +462,7 @@
     state.retryCount = 0;
     state.result = null;
     if (state.elements.shell) state.elements.shell.hidden = true;
+    resetStartShareUi();
     resetFeedbackUi();
   }
 
