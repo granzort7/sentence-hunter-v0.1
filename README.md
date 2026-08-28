@@ -1,6 +1,10 @@
-# Sentence Hunter v0.1
+# Sentence Hunter v0.2.0
 
-틀린 영어 문장을 찾아 고치고 Grammar Bug를 공격하는 **90초 모바일 웹 프로토타입**입니다.
+틀린 영어 문장을 찾아 고치고 Grammar Bug를 공격하는 **90초 모바일 웹 게임**입니다.
+
+- Production: https://sentence-hunter-v0-1.vercel.app/
+- GitHub: https://github.com/granzort7/sentence-hunter-v0.1
+- 현재 릴리스: `v0.2.0`
 
 ## 실행 방법
 
@@ -30,9 +34,11 @@ py -m http.server 8080
 - 90초 Grammar Survival
 - 하트 3개
 - 오류 부분 찾기 → 올바른 표현 선택
+- 실제 플레이 시간에 포함되지 않는 3 → 2 → 1 → HUNT 시작 카운트다운
+- FIND/FIX 단계별 색상·문구·입력 피드백
 - 점수, 속도 보너스, 콤보 배율
 - 5콤보·10콤보 특수 공격
-- Grammar Bug 체력과 처치 수
+- Hunter 공격·Grammar Bug 피격·접근 효과, 체력과 처치 수
 - 마지막 15초 Fever 배율
 - 결과 등급, 정확도, 약점 문법 표시
 - 최고 점수 브라우저 저장
@@ -54,8 +60,10 @@ py -m http.server 8080
 - `styles.css`: 모바일 UI 및 애니메이션
 - `questions.js`: 검수된 30문제 데이터
 - `app.js`: 게임 상태·점수·콤보·전투·결과 로직
-- `GAME_SPEC.md`: v0.1 확정 명세
+- `GAME_SPEC.md`: v0.1에서 보존한 게임 규칙 기준
 - `CODEX_PROMPT.md`: Codex에 전달할 다음 개발 프롬프트
+- `V0_2_REPORT.md`: v0.2.0 변경 및 규칙 보존 보고서
+- `TEST_REPORT_V0_2.md`: v0.2.0 회귀 검사 결과
 
 ## 프로젝트 구조와 배포 방식
 
@@ -69,19 +77,17 @@ py -m http.server 8080
 44CEC71AD8EDE22D290F616E8D365A211BAF7D6D529E4C0FCAEC98FD37177550
 ```
 
-## GitHub 업로드
+## GitHub 저장소
 
-GitHub에서 README, 라이선스, `.gitignore`를 자동 생성하지 않은 빈 저장소를 만든 뒤 프로젝트 루트에서 실행합니다.
+저장소를 새 환경에 내려받으려면 다음을 실행합니다.
 
 ```bash
-git init -b main
-git add .
-git commit -m "Prepare Sentence Hunter v0.1 for static deployment"
-git remote add origin https://github.com/YOUR_ACCOUNT/sentence-hunter-v0.1.git
-git push -u origin main
+git clone https://github.com/granzort7/sentence-hunter-v0.1.git
+cd sentence-hunter-v0.1
+git checkout main
 ```
 
-`YOUR_ACCOUNT`는 실제 GitHub 계정명으로 바꾸세요. 이미 Git 저장소가 초기화되어 있다면 `git init -b main`은 생략합니다.
+기능 변경은 별도 브랜치에서 검증한 뒤 Pull Request로 `main`에 병합합니다. `main` push가 Vercel Production 자동 배포를 시작합니다.
 
 ## Vercel 배포
 

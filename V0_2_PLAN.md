@@ -1,11 +1,11 @@
-# Sentence Hunter v0.2 게임성 개선 계획
+# Sentence Hunter v0.2.0 게임성 개선 계획
 
 ## 작업 기준과 안전선
 
 - 기준 브랜치/커밋: `main` / `b3a97cca0d38b16f4df34e26bcc4d6ace2c254ce`
 - 작업 브랜치: `feat/v0.2-game-feel-lab`
 - 기준 `questions.js` SHA-256: `44CEC71AD8EDE22D290F616E8D365A211BAF7D6D529E4C0FCAEC98FD37177550`
-- 이 브랜치는 v0.1 Production을 교체하지 않는 검토용 후보입니다.
+- 이 브랜치는 v0.1 규칙과 문제 데이터를 보존한 v0.2.0 릴리스를 준비합니다.
 - 점수, 콤보, 공격력, Bug 체력, 타이머, 종료, 최고 기록 및 출제 규칙은 변경하지 않습니다.
 - `questions.js`의 30문제, 정답, 선택지, 순서와 난이도 분포는 변경하지 않습니다.
 
@@ -45,7 +45,7 @@
 
 ### `index.html`
 
-- 검토용 v0.2 Candidate 표기
+- v0.2.0 버전 표기
 - 게임 화면 안의 접근 가능한 시작 카운트다운 레이어
 - FIND/FIX 단계 배지
 - Hunter 공격·피격 수치 표시를 위한 최소 DOM 식별자
@@ -92,4 +92,4 @@
 - HOME부터 countdown, FIND/FIX 정답·오답, combo 5/10, Fever, 두 종료 경로, RETRY 3회, HOME 복귀를 검증합니다.
 - 문법 오류, 콘솔 warning/error, 404, 중복 타이머, 종료 후 상태 변경이 없어야 합니다.
 - `questions.js`의 원본 SHA-256과 30/12/12/6 구조가 작업 전후 동일해야 합니다.
-- 검증 완료 후에도 `main`과 Production은 변경하지 않고 기능 브랜치만 커밋·push합니다.
+- 구현·검증 단계에서는 `main`과 Production을 변경하지 않고 기능 브랜치만 push하며, 승인된 릴리스 단계에서 PR 병합과 Production 자동 배포를 진행합니다.

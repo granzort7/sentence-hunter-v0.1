@@ -419,6 +419,8 @@ function validatePresentationContract() {
     "home-button"
   ].forEach((id) => assert.match(indexSource, new RegExp(`id="${id}"`), `missing #${id}`));
   assert.doesNotMatch(indexSource, /<main class="app-shell" aria-live=/, "timer must not sit inside a global live region");
+  assert.match(indexSource, /<title>Sentence Hunter v0\.2\.0<\/title>/, "release title must be v0.2.0");
+  assert.doesNotMatch(indexSource, /candidate/i, "release UI must not contain Candidate wording");
   assert.match(indexSource, /<link rel="icon" href="data:," \/>/, "static hosting must not request a missing favicon");
   assert.match(indexSource, /id="countdown-overlay"[^>]*aria-live="polite"/, "countdown announcements must not interrupt one another");
   assert.match(appSource, /const COUNTDOWN_STEPS = \["3", "2", "1", "HUNT"\];/, "countdown sequence changed");

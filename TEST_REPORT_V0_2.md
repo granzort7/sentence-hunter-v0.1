@@ -1,4 +1,4 @@
-# Sentence Hunter v0.2 후보 회귀 검증 보고서
+# Sentence Hunter v0.2.0 회귀 검증 보고서
 
 검증일: 2026-08-28 (Asia/Seoul)
 
