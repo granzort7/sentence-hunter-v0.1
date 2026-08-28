@@ -1,5 +1,9 @@
 # 변경 기록
 
+## Unreleased
+
+- v0.2.1 beta-only feedback and sharing candidate
+
 ## v0.2.0 - 2026-08-28
 
 - 3→2→1→HUNT 시작 리듬을 추가했습니다. 카운트다운은 실제 90초에 포함되지 않습니다.
