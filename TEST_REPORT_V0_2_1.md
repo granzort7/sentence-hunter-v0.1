@@ -1,8 +1,8 @@
 # Sentence Hunter v0.2.1 Beta Test Kit 검증 보고서
 
-검증일: 2026-08-28  
-작업 브랜치: `feat/v0.2.1-beta-test-kit`  
-기준 main: `19842d9c549c175d5ee4e295d9593a052b3411e2`  
+검증일: 2026-08-28
+작업 브랜치: `feat/v0.2.1-beta-test-kit`
+기준 main: `19842d9c549c175d5ee4e295d9593a052b3411e2`
 기준 릴리스: `v0.2.0`
 
 ## 1. 결론
