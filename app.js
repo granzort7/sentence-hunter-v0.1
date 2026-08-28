@@ -3,6 +3,8 @@
 const GAME_DURATION_SECONDS = 90;
 const STARTING_HEARTS = 3;
 const STORAGE_KEY = "sentenceHunterHighScoreV01";
+const COUNTDOWN_STEPS = ["3", "2", "1", "HUNT"];
+const COUNTDOWN_STEP_MS = 400;
 
 const CATEGORY_LABELS = {
   agreement: "주어·동사 수일치",
@@ -113,6 +115,8 @@ const elements = {
   retryButton: document.getElementById("retry-button"),
   homeButton: document.getElementById("home-button"),
   soundToggles: [...document.querySelectorAll(".sound-toggle")],
+  countdownOverlay: document.getElementById("countdown-overlay"),
+  countdownValue: document.getElementById("countdown-value"),
   startHighScore: document.getElementById("start-high-score"),
   timerValue: document.getElementById("timer-value"),
   timerPill: document.getElementById("timer-pill"),
@@ -120,15 +124,18 @@ const elements = {
   hearts: document.getElementById("hearts"),
   comboBadge: document.getElementById("combo-badge"),
   arena: document.getElementById("arena"),
+  playerWrap: document.getElementById("player-wrap"),
   feverLabel: document.getElementById("fever-label"),
   enemyWrap: document.getElementById("enemy-wrap"),
   enemyName: document.getElementById("enemy-name"),
   enemyEmoji: document.getElementById("enemy-emoji"),
   enemyHealthFill: document.getElementById("enemy-health-fill"),
   projectileLayer: document.getElementById("projectile-layer"),
+  impactLabel: document.getElementById("impact-label"),
   questionCard: document.getElementById("question-card"),
   difficultyChip: document.getElementById("difficulty-chip"),
   questionCount: document.getElementById("question-count"),
+  phaseStep: document.getElementById("phase-step"),
   phasePrompt: document.getElementById("phase-prompt"),
   sentenceSegments: document.getElementById("sentence-segments"),
   answerOptions: document.getElementById("answer-options"),
@@ -137,6 +144,7 @@ const elements = {
   defeatedCount: document.getElementById("defeated-count"),
   bestComboLive: document.getElementById("best-combo-live"),
   resultReason: document.getElementById("result-reason"),
+  resultTitle: document.getElementById("result-title"),
   resultGrade: document.getElementById("result-grade"),
   resultScore: document.getElementById("result-score"),
   resultAccuracy: document.getElementById("result-accuracy"),
@@ -150,10 +158,12 @@ const elements = {
 let state = createInitialState();
 let audioContext = null;
 let soundEnabled = true;
+let keyboardInputMode = false;
 
 function createInitialState() {
   return {
     active: false,
+    starting: false,
     ended: false,
     score: 0,
     combo: 0,
@@ -172,6 +182,7 @@ function createInitialState() {
     gameStartedAt: 0,
     timerId: null,
     timeLeft: GAME_DURATION_SECONDS,
+    feverTriggered: false,
     usedIds: new Set(),
     categoryMistakes: {},
     locked: false,
@@ -183,6 +194,7 @@ function showScreen(name) {
   Object.entries(elements.screens).forEach(([key, screen]) => {
     screen.classList.toggle("active", key === name);
   });
+  window.requestAnimationFrame(() => window.scrollTo(0, 0));
 }
 
 function getHighScore() {
@@ -230,6 +242,58 @@ function clearPendingTimeouts() {
   state.pendingTimeouts = [];
 }
 
+function focusElement(element, options = {}) {
+  if (!element) return;
+  const { force = false, reveal = false, scrollForPointer = false } = options;
+  window.requestAnimationFrame(() => {
+    if (!document.contains(element) || element.disabled) return;
+    if (!keyboardInputMode && !force) {
+      if (scrollForPointer) element.scrollIntoView({ block: "nearest" });
+      return;
+    }
+    if (reveal) {
+      element.focus();
+      return;
+    }
+    try {
+      element.focus({ preventScroll: true });
+    } catch (error) {
+      element.focus();
+    }
+  });
+}
+
+function resetTransientEffects() {
+  elements.projectileLayer.replaceChildren();
+  elements.impactLabel.textContent = "";
+  elements.impactLabel.className = "impact-label";
+  elements.countdownOverlay.classList.remove("hunt");
+  elements.countdownValue.classList.remove("tick");
+  elements.playerWrap.classList.remove("attack-1", "attack-2", "attack-3");
+  elements.enemyWrap.classList.remove("hit", "lunge", "pop");
+  elements.enemyHealthFill.classList.remove("health-hit");
+  delete elements.enemyHealthFill.dataset.power;
+  elements.questionCard.classList.remove("shake");
+  elements.arena.classList.remove("impact-1", "impact-2", "impact-3", "fever-enter");
+  document.body.classList.remove("fever-mode");
+}
+
+function setPhasePresentation(phase) {
+  elements.questionCard.dataset.phase = phase;
+  if (phase === "ready") {
+    elements.phaseStep.textContent = "READY";
+    elements.phasePrompt.textContent = "HUNT 신호 후 시작합니다";
+    return;
+  }
+  if (phase === "fix") {
+    elements.phaseStep.textContent = "STEP 2 · FIX";
+    elements.phasePrompt.textContent = "올바른 표현으로 교정하세요";
+    return;
+  }
+  elements.phaseStep.textContent = "STEP 1 · FIND";
+  elements.phasePrompt.textContent = "틀린 부분을 터치하세요";
+}
+
 function initAudio() {
   if (!audioContext) {
     const AudioCtor = window.AudioContext || window.webkitAudioContext;
@@ -269,11 +333,17 @@ function playDefeatSound() {
   tone(880, 0.13, "square", 0.045, 0.14);
 }
 
-function toggleSound() {
-  soundEnabled = !soundEnabled;
+function renderSoundToggles() {
   elements.soundToggles.forEach((button) => {
     button.textContent = soundEnabled ? "🔊" : "🔇";
+    button.setAttribute("aria-pressed", String(soundEnabled));
+    button.setAttribute("aria-label", soundEnabled ? "소리 끄기" : "소리 켜기");
   });
+}
+
+function toggleSound() {
+  soundEnabled = !soundEnabled;
+  renderSoundToggles();
   if (soundEnabled) {
     initAudio();
     tone(520, 0.06, "sine", 0.035);
@@ -285,11 +355,56 @@ function startGame() {
   clearPendingTimeouts();
   if (state.timerId) window.clearInterval(state.timerId);
   state = createInitialState();
-  state.active = true;
-  state.gameStartedAt = performance.now();
+  resetTransientEffects();
+  elements.timerValue.textContent = String(GAME_DURATION_SECONDS);
+  elements.timerPill.classList.remove("danger");
+  elements.feverLabel.classList.remove("active");
+  elements.feverLabel.textContent = "FEVER 15";
+  elements.sentenceSegments.replaceChildren();
+  elements.answerOptions.replaceChildren();
+  elements.answerOptions.classList.add("hidden");
+  elements.feedback.className = "feedback";
+  elements.feedback.textContent = "";
+  elements.questionCount.textContent = "Q 1";
+  setPhasePresentation("ready");
   selectNewBug(true);
   showScreen("game");
   renderHud();
+  startCountdown();
+}
+
+function startCountdown() {
+  state.starting = true;
+  elements.countdownOverlay.hidden = false;
+  showCountdownStep(COUNTDOWN_STEPS[0]);
+  focusElement(elements.countdownOverlay, { force: true });
+
+  COUNTDOWN_STEPS.slice(1).forEach((step, index) => {
+    schedule(() => {
+      if (!state.starting || state.ended) return;
+      showCountdownStep(step);
+    }, (index + 1) * COUNTDOWN_STEP_MS);
+  });
+
+  schedule(beginRound, COUNTDOWN_STEPS.length * COUNTDOWN_STEP_MS);
+}
+
+function showCountdownStep(step) {
+  elements.countdownValue.textContent = step;
+  elements.countdownValue.classList.remove("tick");
+  void elements.countdownValue.offsetWidth;
+  elements.countdownValue.classList.add("tick");
+  elements.countdownOverlay.classList.toggle("hunt", step === "HUNT");
+  tone(step === "HUNT" ? 760 : 360 + Number(step) * 70, 0.07, "square", 0.035);
+}
+
+function beginRound() {
+  if (!state.starting || state.ended) return;
+  state.starting = false;
+  state.active = true;
+  state.gameStartedAt = performance.now();
+  elements.countdownOverlay.hidden = true;
+  elements.countdownOverlay.classList.remove("hunt");
   nextQuestion();
   updateTimer();
   state.timerId = window.setInterval(updateTimer, 100);
@@ -305,6 +420,10 @@ function updateTimer() {
   elements.timerValue.textContent = String(state.timeLeft);
 
   const fever = remaining <= 15 && remaining > 0;
+  if (fever && !state.feverTriggered) {
+    state.feverTriggered = true;
+    animateClass(elements.arena, "fever-enter");
+  }
   elements.timerPill.classList.toggle("danger", fever);
   elements.feverLabel.classList.toggle("active", fever);
   document.body.classList.toggle("fever-mode", fever);
@@ -351,10 +470,14 @@ function nextQuestion() {
   elements.answerOptions.innerHTML = "";
   elements.feedback.className = "feedback";
   elements.feedback.textContent = "";
-  elements.phasePrompt.textContent = "틀린 부분을 터치하세요";
+  setPhasePresentation("find");
   elements.questionCount.textContent = `Q ${state.currentQuestionNumber}`;
   renderDifficulty(state.currentQuestion.difficulty);
   renderSentence();
+  focusElement(elements.sentenceSegments.querySelector(".segment-button"), {
+    reveal: true,
+    scrollForPointer: true
+  });
 }
 
 function renderDifficulty(difficulty) {
@@ -390,9 +513,13 @@ function handleSegmentTap(index) {
 
   if (index === state.currentQuestion.errorIndex) {
     state.phase = "fix";
-    elements.phasePrompt.textContent = "올바른 표현으로 교정하세요";
+    setPhasePresentation("fix");
     renderSentence();
     renderChoices();
+    focusElement(elements.answerOptions.querySelector(".answer-button"), {
+      reveal: true,
+      scrollForPointer: true
+    });
     tone(460, 0.055, "sine", 0.03);
     return;
   }
@@ -402,8 +529,10 @@ function handleSegmentTap(index) {
   playWrongSound();
   vibrate([70]);
   animateMiss();
+  const missedSegment = elements.sentenceSegments.querySelector(`[data-index="${index}"]`);
+  if (missedSegment) animateClass(missedSegment, "missed-segment");
   elements.feedback.className = "feedback error";
-  elements.feedback.textContent = "MISS! 다른 부분을 찾아보세요.";
+  elements.feedback.innerHTML = '<span class="feedback-label">FIND MISS</span><span>선택한 부분은 오류가 아니에요.</span>';
   loseHeart();
   renderHud();
 
@@ -435,6 +564,9 @@ function renderChoices() {
 function handleAnswer(choice, button) {
   if (!state.active || state.ended || state.locked || state.phase !== "fix") return;
   state.locked = true;
+  [...elements.answerOptions.children].forEach((candidate) => {
+    candidate.disabled = true;
+  });
   const isCorrect = choice === state.currentQuestion.correctAnswer;
 
   if (isCorrect) {
@@ -446,7 +578,6 @@ function handleAnswer(choice, button) {
       if (candidate.textContent === state.currentQuestion.correctAnswer) {
         candidate.classList.add("correct-choice");
       }
-      candidate.disabled = true;
     });
     resolveWrongAnswer();
   }
@@ -475,13 +606,14 @@ function resolveCorrect() {
     damage = 2;
     critical = true;
   }
+  const attackTier = state.combo >= 10 ? 3 : state.combo >= 5 ? 2 : 1;
 
   elements.feedback.className = "feedback success";
-  elements.feedback.innerHTML = `${critical ? "CRITICAL!" : "PERFECT!"} +${gained}<br><strong>${state.currentQuestion.correctSentence}</strong>`;
+  elements.feedback.innerHTML = `<span class="feedback-label">${critical ? "CRITICAL" : "PERFECT"}</span><span>+${gained}</span><strong>${state.currentQuestion.correctSentence}</strong>`;
   playCorrectSound(critical);
   vibrate(critical ? [40, 35, 70] : [35]);
-  fireProjectile(critical);
-  damageEnemy(damage);
+  fireProjectile(critical, attackTier, damage);
+  damageEnemy(damage, attackTier);
   renderHud();
 
   schedule(() => nextQuestion(), critical ? 820 : 690);
@@ -494,7 +626,7 @@ function resolveWrongAnswer() {
   vibrate([90]);
   animateMiss();
   elements.feedback.className = "feedback error";
-  elements.feedback.innerHTML = `정답: <strong>${state.currentQuestion.correctAnswer}</strong><br>${state.currentQuestion.explanation}`;
+  elements.feedback.innerHTML = `<span class="feedback-label">FIX MISS</span><span>정답: <strong>${state.currentQuestion.correctAnswer}</strong></span><small>${state.currentQuestion.explanation}</small>`;
   loseHeart();
   renderHud();
 
@@ -520,16 +652,26 @@ function loseHeart() {
   if (state.hearts <= 0) endGame("hearts");
 }
 
-function fireProjectile(critical) {
+function fireProjectile(critical, attackTier, damage) {
   const projectile = document.createElement("div");
-  projectile.className = `projectile${critical ? " critical" : ""}`;
+  projectile.className = `projectile power-${attackTier}${critical ? " critical" : ""}`;
   elements.projectileLayer.appendChild(projectile);
+  animateClass(elements.playerWrap, `attack-${attackTier}`);
+  animateClass(elements.arena, `impact-${attackTier}`);
+  elements.impactLabel.textContent = `${damage === 3 ? "MEGA HIT" : damage === 2 ? "POWER HIT" : "HIT"} · -${damage} HP`;
+  elements.impactLabel.className = `impact-label active power-${attackTier}`;
   schedule(() => projectile.remove(), 430);
+  schedule(() => {
+    elements.impactLabel.textContent = "";
+    elements.impactLabel.className = "impact-label";
+  }, 460);
 }
 
-function damageEnemy(amount) {
+function damageEnemy(amount, attackTier) {
   state.enemyHp -= amount;
   animateClass(elements.enemyWrap, "hit");
+  elements.enemyHealthFill.dataset.power = String(attackTier);
+  animateClass(elements.enemyHealthFill, "health-hit");
 
   if (state.enemyHp <= 0) {
     state.defeated += 1;
@@ -577,6 +719,9 @@ function renderHud() {
   elements.scoreValue.textContent = formatScore(state.score);
   elements.comboBadge.textContent = `COMBO ×${state.combo}`;
   elements.comboBadge.classList.toggle("hot", state.combo >= 5);
+  elements.comboBadge.classList.toggle("blazing", state.combo >= 10);
+  elements.arena.dataset.threat = String(Math.min(STARTING_HEARTS, STARTING_HEARTS - state.hearts));
+  elements.hearts.setAttribute("aria-label", `남은 체력 ${state.hearts}개`);
   elements.hearts.innerHTML = Array.from({ length: STARTING_HEARTS }, (_, index) =>
     index < state.hearts ? "<span>♥</span>" : '<span class="lost">♥</span>'
   ).join(" ");
@@ -610,11 +755,13 @@ function endGame(reason) {
   if (state.ended) return;
   state.ended = true;
   state.active = false;
+  state.starting = false;
   state.locked = true;
   if (state.timerId) window.clearInterval(state.timerId);
   state.timerId = null;
   clearPendingTimeouts();
-  document.body.classList.remove("fever-mode");
+  resetTransientEffects();
+  elements.countdownOverlay.hidden = true;
 
   const accuracy = calculateAccuracy();
   const grade = calculateGrade(state.score, accuracy, state.solved);
@@ -634,6 +781,7 @@ function endGame(reason) {
   elements.startHighScore.textContent = formatScore(Math.max(previousHighScore, state.score));
 
   showScreen("result");
+  focusElement(elements.resultTitle);
   if (grade === "S" || grade === "A") playDefeatSound();
 }
 
@@ -641,15 +789,27 @@ function goHome() {
   clearPendingTimeouts();
   if (state.timerId) window.clearInterval(state.timerId);
   state.active = false;
+  state.starting = false;
   state.ended = true;
-  document.body.classList.remove("fever-mode");
+  state.timerId = null;
+  resetTransientEffects();
+  elements.countdownOverlay.hidden = true;
   elements.startHighScore.textContent = formatScore(getHighScore());
   showScreen("start");
+  focusElement(elements.startButton, { reveal: true });
 }
+
+document.addEventListener("keydown", () => {
+  keyboardInputMode = true;
+}, true);
+document.addEventListener("pointerdown", () => {
+  keyboardInputMode = false;
+}, true);
 
 elements.startButton.addEventListener("click", startGame);
 elements.retryButton.addEventListener("click", startGame);
 elements.homeButton.addEventListener("click", goHome);
 elements.soundToggles.forEach((button) => button.addEventListener("click", toggleSound));
 
+renderSoundToggles();
 elements.startHighScore.textContent = formatScore(getHighScore());
