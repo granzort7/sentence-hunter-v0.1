@@ -40,6 +40,14 @@ const BUG_NAMES = [
 ];
 
 const QUESTIONS = window.SENTENCE_HUNTER_QUESTIONS;
+const betaTools = window.SENTENCE_HUNTER_BETA || {
+  active: false,
+  mount() {},
+  onGameStart() {},
+  onResult() {},
+  onRetry() {},
+  onHome() {}
+};
 
 if (!Array.isArray(QUESTIONS)) {
   throw new Error("questions.js must be loaded before app.js");
@@ -351,6 +359,7 @@ function toggleSound() {
 }
 
 function startGame() {
+  if (betaTools.active) betaTools.onGameStart();
   initAudio();
   clearPendingTimeouts();
   if (state.timerId) window.clearInterval(state.timerId);
@@ -780,12 +789,24 @@ function endGame(reason) {
   elements.newRecordLabel.classList.toggle("hidden", !isNewRecord);
   elements.startHighScore.textContent = formatScore(Math.max(previousHighScore, state.score));
 
+  if (betaTools.active) {
+    betaTools.onResult({
+      score: state.score,
+      accuracy,
+      bestCombo: state.bestCombo,
+      solved: state.solved,
+      defeated: state.defeated,
+      endReason: reason === "hearts" ? "HEARTS" : "TIME UP"
+    });
+  }
+
   showScreen("result");
   focusElement(elements.resultTitle);
   if (grade === "S" || grade === "A") playDefeatSound();
 }
 
 function goHome() {
+  if (betaTools.active) betaTools.onHome();
   clearPendingTimeouts();
   if (state.timerId) window.clearInterval(state.timerId);
   state.active = false;
@@ -807,9 +828,17 @@ document.addEventListener("pointerdown", () => {
 }, true);
 
 elements.startButton.addEventListener("click", startGame);
-elements.retryButton.addEventListener("click", startGame);
+if (betaTools.active) {
+  elements.retryButton.addEventListener("click", () => {
+    betaTools.onRetry();
+    startGame();
+  });
+} else {
+  elements.retryButton.addEventListener("click", startGame);
+}
 elements.homeButton.addEventListener("click", goHome);
 elements.soundToggles.forEach((button) => button.addEventListener("click", toggleSound));
 
+if (betaTools.active) betaTools.mount({ getSoundEnabled: () => soundEnabled });
 renderSoundToggles();
 elements.startHighScore.textContent = formatScore(getHighScore());
